@@ -44,6 +44,10 @@ from yolov8_msgs.msg import KeyPoint2DArray
 from yolov8_msgs.msg import Detection
 from yolov8_msgs.msg import DetectionArray
 
+from object_msgs.msg import Object
+from object_msgs.msg import ObjectInBox
+from object_msgs.msg import ObjectsInBoxes
+
 
 class Yolov8Node(LifecycleNode):
 
@@ -94,6 +98,10 @@ class Yolov8Node(LifecycleNode):
 
         self._pub = self.create_lifecycle_publisher(
             DetectionArray, "detections", 10)
+        
+        self._pub_object_msgs =  self.create_lifecycle_publisher(
+            ObjectsInBoxes, "detections_object_msgs", 10)
+        
         self._srv = self.create_service(
             SetBool, "enable", self.enable_cb
         )
@@ -114,7 +122,7 @@ class Yolov8Node(LifecycleNode):
         self._sub = self.create_subscription(
             Image,
             "image_raw",
-            self.image_cb,
+            self.image_cb_object_msgs,
             self.image_qos_profile
         )
 
@@ -143,6 +151,7 @@ class Yolov8Node(LifecycleNode):
         self.get_logger().info(f"[{self.get_name()}] Cleaning up...")
 
         self.destroy_publisher(self._pub)
+        self.destroy_publisher(self._pub_object_msgs)
 
         del self.image_qos_profile
 
@@ -326,6 +335,81 @@ class Yolov8Node(LifecycleNode):
             # publish detections
             detections_msg.header = msg.header
             self._pub.publish(detections_msg)
+
+            del results
+            del cv_image
+
+    def parse_boxes_dict(self, results: Results) -> List[Dict]:
+
+        boxes_list = []
+
+        if results.boxes:
+            box_data: Boxes
+            for box_data in results.boxes:
+                # get boxes values
+                box = box_data.xywh[0]
+                center_position_x = float(box[0])
+                center_position_y = float(box[1])
+                size_x = float(box[2])
+                size_y = float(box[3])
+
+                boxes_list.append({"x_offset": center_position_x - size_x/2,"y_offset": center_position_y - size_y/2, "width":size_x, "height":size_y})
+
+        elif results.obb:
+            for i in range(results.obb.cls.shape[0]):
+                # get boxes values
+                box = results.obb.xywhr[i]
+                center_position_x = float(box[0])
+                center_position_y = float(box[1])
+                center_theta = float(box[4])
+                size_x = float(box[2])
+                size_y = float(box[3])
+                
+                boxes_list.append({"x_offset": center_position_x - size_x/2,"y_offset": center_position_y - size_y/2, "width":size_x, "height":size_y})
+
+        return boxes_list
+
+    def image_cb_object_msgs(self, msg:Image) -> None:
+
+        if self.enable:
+
+            # convert image + predict
+            cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
+            results = self.yolo.predict(
+                source=cv_image,
+                verbose=False,
+                stream=False,
+                conf=self.threshold,
+                device=self.device
+            )
+            results: Results = results[0].cpu()
+
+            if results.boxes or results.obb:
+                hypothesis = self.parse_hypothesis(results)
+                boxes = self.parse_boxes_dict(results)
+
+            # create detection msgs
+            detections_msg = ObjectsInBoxes()
+
+            for i in range(len(results)):
+                aux_msg = ObjectInBox()
+
+                if results.boxes or results.obb and hypothesis and boxes:
+                    aux_msg_obj = Object()
+                    aux_msg_obj.object_name = hypothesis[i]["class_name"]
+                    aux_msg_obj.probability = hypothesis[i]["score"]
+
+                    aux_msg.object = aux_msg_obj
+                    aux_msg.roi.x_offset = boxes[i]["x_offset"]
+                    aux_msg.roi.y_offset = boxes[i]["y_offset"]
+                    aux_msg.roi.width = boxes[i]["width"]
+                    aux_msg.roi.height = boxes[i]["height"]
+
+                detections_msg.objects_vector.append(aux_msg)
+
+            # publish detections
+            detections_msg.header = msg.header
+            self._pub_object_msgs.publish(detections_msg)
 
             del results
             del cv_image

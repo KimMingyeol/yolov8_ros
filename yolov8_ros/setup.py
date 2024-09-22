@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
                 'yolov8_node = yolov8_ros.yolov8_node:main',
                 'debug_node = yolov8_ros.debug_node:main',
+                'debug_node_object_msgs = yolov8_ros.debug_node_object_msgs:main',
                 'tracking_node = yolov8_ros.tracking_node:main',
                 'detect_3d_node = yolov8_ros.detect_3d_node:main',
         ],
