@@ -43,13 +43,7 @@ def generate_launch_description():
         "device",
         default_value="cuda:0",
         description="Device to use (GPU/CPU)")
-
-    enable = LaunchConfiguration("enable")
-    enable_cmd = DeclareLaunchArgument(
-        "enable",
-        default_value="True",
-        description="Whether to start YOLOv8 enabled")
-
+    
     threshold = LaunchConfiguration("threshold")
     threshold_cmd = DeclareLaunchArgument(
         "threshold",
@@ -80,14 +74,13 @@ def generate_launch_description():
     #
     detector_node_cmd = Node(
         package="yolov8_ros",
-        executable="yolov8_node",
-        name="yolov8_node",
+        executable="yolov8_node_object_msgs",
+        name="yolov8_node_object_msgs",
         namespace=namespace,
         parameters=[{
             "model_type": model_type,
             "model": model,
             "device": device,
-            "enable": enable,
             "threshold": threshold,
             "image_reliability": image_reliability,
         }],
@@ -101,7 +94,8 @@ def generate_launch_description():
         namespace=namespace,
         parameters=[{"image_reliability": image_reliability}],
         remappings=[
-            ("image_raw", input_image_topic)
+            ("image_raw", input_image_topic),
+            ("detections", "detections_object_msgs")
         ]
     )
 
@@ -110,7 +104,6 @@ def generate_launch_description():
     ld.add_action(model_type_cmd)
     ld.add_action(model_cmd)
     ld.add_action(device_cmd)
-    ld.add_action(enable_cmd)
     ld.add_action(threshold_cmd)
     ld.add_action(input_image_topic_cmd)
     ld.add_action(image_reliability_cmd)
