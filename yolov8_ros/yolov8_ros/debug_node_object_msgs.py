@@ -20,7 +20,6 @@ import numpy as np
 from typing import Tuple
 
 import rclpy
-from rclpy.duration import Duration
 from rclpy.qos import QoSProfile
 from rclpy.qos import QoSHistoryPolicy
 from rclpy.qos import QoSDurabilityPolicy
@@ -31,15 +30,9 @@ from rclpy.lifecycle import LifecycleState
 
 import message_filters
 from cv_bridge import CvBridge
-from ultralytics.utils.plotting import Annotator, colors
 
 from sensor_msgs.msg import Image
 from sensor_msgs.msg import RegionOfInterest
-from visualization_msgs.msg import Marker
-from visualization_msgs.msg import MarkerArray
-# from yolov8_msgs.msg import BoundingBox2D
-# from yolov8_msgs.msg import Detection
-# from yolov8_msgs.msg import DetectionArray
 
 from object_msgs.msg import Object
 from object_msgs.msg import ObjectInBox
