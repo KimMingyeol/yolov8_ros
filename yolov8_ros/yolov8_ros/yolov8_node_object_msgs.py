@@ -57,6 +57,9 @@ class Yolov8Node(LifecycleNode):
             "NAS": NAS
         }
 
+        self.detection_class_names = ["person"]
+        self.detection_class_ids = None
+
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{self.get_name()}] Configuring...")
 
@@ -97,6 +100,8 @@ class Yolov8Node(LifecycleNode):
 
         self.yolo = self.type_to_model[self.model_type](self.model)
         self.yolo.fuse()
+
+        self.detection_class_ids = list(map(lambda x: [k for k, v in self.yolo.names.items() if v==x][0], self.detection_class_names))
 
         # subs
         self._sub = self.create_subscription(
@@ -209,7 +214,8 @@ class Yolov8Node(LifecycleNode):
             verbose=False,
             stream=False,
             conf=self.threshold,
-            device=self.device
+            device=self.device,
+            classes=self.detection_class_ids
         )
         results: Results = results[0].cpu()
 
