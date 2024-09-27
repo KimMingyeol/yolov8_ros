@@ -17,10 +17,7 @@
 from typing import List, Dict
 
 import rclpy
-from rclpy.qos import QoSProfile
-from rclpy.qos import QoSHistoryPolicy
-from rclpy.qos import QoSDurabilityPolicy
-from rclpy.qos import QoSReliabilityPolicy
+from rclpy.qos import QoSProfile, QoSPresetProfiles
 from rclpy.lifecycle import LifecycleNode
 from rclpy.lifecycle import TransitionCallbackReturn
 from rclpy.lifecycle import LifecycleState
@@ -49,8 +46,6 @@ class Yolov8Node(LifecycleNode):
         self.declare_parameter("model", "yolov8m.pt")
         self.declare_parameter("device", "cuda:0")
         self.declare_parameter("threshold", 0.5)
-        self.declare_parameter("image_reliability",
-                               QoSReliabilityPolicy.BEST_EFFORT)
 
         self.type_to_model = {
             "YOLO": YOLO,
@@ -75,16 +70,6 @@ class Yolov8Node(LifecycleNode):
         self.threshold = self.get_parameter(
             "threshold").get_parameter_value().double_value
 
-        self.reliability = self.get_parameter(
-            "image_reliability").get_parameter_value().integer_value
-
-        self.image_qos_profile = QoSProfile(
-            reliability=self.reliability,
-            history=QoSHistoryPolicy.KEEP_LAST,
-            durability=QoSDurabilityPolicy.VOLATILE,
-            depth=1
-        )
-        
         self._pub_object_msgs =  self.create_lifecycle_publisher(
             ObjectsInBoxes, "detections_object_msgs", 10)
         
@@ -108,7 +93,7 @@ class Yolov8Node(LifecycleNode):
             Image,
             "image_raw",
             self.image_cb_object_msgs,
-            self.image_qos_profile
+            10
         )
 
         super().on_activate(state)
@@ -136,8 +121,6 @@ class Yolov8Node(LifecycleNode):
         self.get_logger().info(f"[{self.get_name()}] Cleaning up...")
 
         self.destroy_publisher(self._pub_object_msgs)
-
-        del self.image_qos_profile
 
         super().on_cleanup(state)
         self.get_logger().info(f"[{self.get_name()}] Cleaned up")
@@ -206,7 +189,6 @@ class Yolov8Node(LifecycleNode):
         return boxes_list
 
     def image_cb_object_msgs(self, msg:Image) -> None:
-
         # convert image + predict
         cv_image = self.cv_bridge.imgmsg_to_cv2(msg)
         results = self.yolo.predict(
@@ -241,7 +223,7 @@ class Yolov8Node(LifecycleNode):
                 aux_msg.roi.height = int(boxes[i]["height"])
 
             detections_msg.objects_vector.append(aux_msg)
-
+        
         # publish detections
         detections_msg.header = msg.header
         self._pub_object_msgs.publish(detections_msg)

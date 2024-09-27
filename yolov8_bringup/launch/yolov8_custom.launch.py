@@ -56,13 +56,6 @@ def generate_launch_description():
         default_value="/cubemap/front",
         description="Name of the input image topic")
 
-    image_reliability = LaunchConfiguration("image_reliability")
-    image_reliability_cmd = DeclareLaunchArgument(
-        "image_reliability",
-        default_value="2",
-        choices=["0", "1", "2"],
-        description="Specific reliability QoS of the input image topic (0=system default, 1=Reliable, 2=Best Effort)")
-
     namespace = LaunchConfiguration("namespace")
     namespace_cmd = DeclareLaunchArgument(
         "namespace",
@@ -82,7 +75,6 @@ def generate_launch_description():
             "model": model,
             "device": device,
             "threshold": threshold,
-            "image_reliability": image_reliability,
         }],
         remappings=[("image_raw", input_image_topic)]
     )
@@ -92,7 +84,6 @@ def generate_launch_description():
         executable="debug_node_object_msgs",
         name="debug_node_object_msgs",
         namespace=namespace,
-        parameters=[{"image_reliability": image_reliability}],
         remappings=[
             ("image_raw", input_image_topic),
             ("detections", "detections_object_msgs")
@@ -106,10 +97,9 @@ def generate_launch_description():
     ld.add_action(device_cmd)
     ld.add_action(threshold_cmd)
     ld.add_action(input_image_topic_cmd)
-    ld.add_action(image_reliability_cmd)
     ld.add_action(namespace_cmd)
 
     ld.add_action(detector_node_cmd)
-    ld.add_action(debug_node_cmd)
+    # ld.add_action(debug_node_cmd)
 
     return ld

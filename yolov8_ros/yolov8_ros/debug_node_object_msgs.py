@@ -20,10 +20,7 @@ import numpy as np
 from typing import Tuple
 
 import rclpy
-from rclpy.qos import QoSProfile
-from rclpy.qos import QoSHistoryPolicy
-from rclpy.qos import QoSDurabilityPolicy
-from rclpy.qos import QoSReliabilityPolicy
+from rclpy.qos import QoSProfile, QoSPresetProfiles
 from rclpy.lifecycle import LifecycleNode
 from rclpy.lifecycle import TransitionCallbackReturn
 from rclpy.lifecycle import LifecycleState
@@ -47,20 +44,8 @@ class DebugNodeObjectMsgs(LifecycleNode):
         self._class_to_color = {}
         self.cv_bridge = CvBridge()
 
-        # params
-        self.declare_parameter("image_reliability",
-                               QoSReliabilityPolicy.BEST_EFFORT)
-
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{self.get_name()}] Configuring...")
-
-        self.image_qos_profile = QoSProfile(
-            reliability=self.get_parameter(
-                "image_reliability").get_parameter_value().integer_value,
-            history=QoSHistoryPolicy.KEEP_LAST,
-            durability=QoSDurabilityPolicy.VOLATILE,
-            depth=1
-        )
 
         # pubs
         self._dbg_pub = self.create_publisher(Image, "dbg_image", 10)
@@ -75,7 +60,7 @@ class DebugNodeObjectMsgs(LifecycleNode):
 
         # subs
         self.image_sub = message_filters.Subscriber(
-            self, Image, "image_raw", qos_profile=self.image_qos_profile)
+            self, Image, "image_raw", qos_profile=10)
         self.detections_sub = message_filters.Subscriber(
             self, ObjectsInBoxes, "detections", qos_profile=10)
 
