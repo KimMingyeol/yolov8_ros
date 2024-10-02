@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
                 'yolov8_node_object_msgs = yolov8_ros.yolov8_node_object_msgs:main',
                 'debug_node_object_msgs = yolov8_ros.debug_node_object_msgs:main',
+                'bounding_box_3d_rviz_publisher = yolov8_ros.bounding_box_3d_rviz_publisher:main',
         ],
     },
 )

@@ -90,6 +90,16 @@ def generate_launch_description():
         ]
     )
 
+    bbx3d_pub_node_cmd = Node(
+        package="yolov8_ros",
+        executable="bounding_box_3d_rviz_publisher",
+        name="bounding_box_3d_rviz_publisher",
+        namespace=namespace,
+        remappings=[
+            ("detections_3d", "/object_analytics/localization")
+        ]
+    )
+
     ld = LaunchDescription()
 
     ld.add_action(model_type_cmd)
@@ -101,5 +111,6 @@ def generate_launch_description():
 
     ld.add_action(detector_node_cmd)
     # ld.add_action(debug_node_cmd)
+    ld.add_action(bbx3d_pub_node_cmd)
 
     return ld

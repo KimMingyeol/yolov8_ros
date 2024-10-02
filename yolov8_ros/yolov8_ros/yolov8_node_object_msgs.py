@@ -217,10 +217,10 @@ class Yolov8Node(LifecycleNode):
                 aux_msg_obj.probability = hypothesis[i]["score"]
 
                 aux_msg.object = aux_msg_obj
-                aux_msg.roi.x_offset = int(boxes[i]["x_offset"])
-                aux_msg.roi.y_offset = int(boxes[i]["y_offset"])
-                aux_msg.roi.width = int(boxes[i]["width"])
-                aux_msg.roi.height = int(boxes[i]["height"])
+                aux_msg.roi.x_offset = round(boxes[i]["x_offset"])
+                aux_msg.roi.y_offset = round(boxes[i]["y_offset"])
+                aux_msg.roi.width = round(boxes[i]["width"])
+                aux_msg.roi.height = round(boxes[i]["height"])
 
             detections_msg.objects_vector.append(aux_msg)
         
