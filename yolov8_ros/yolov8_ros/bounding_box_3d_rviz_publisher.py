@@ -15,10 +15,19 @@ from object_analytics_msgs.msg import ObjectsInBoxes3D
 from vision_msgs.msg import BoundingBox3D
 from vision_msgs.msg import BoundingBox3DArray
 
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 class BoundingBox3dRvizPublisher(LifecycleNode):
 
     def __init__(self) -> None:
         super().__init__("bounding_box_3d_rviz_publisher")
+        
+        lens_gap = 0.0179 # (m)
+        lidar_to_lens_distance = 0.5 # (m); lidar->360 camera: direction of height
+
+        extrinsic_matrix = np.array([[0, -1, 0, 0], [0, 0, -1, lidar_to_lens_distance], [1, 0, 0, -lens_gap/2]])
+        self.rviz_extrinsic_matrix = np.hstack((np.linalg.inv(extrinsic_matrix[:,:3]), np.array([[lens_gap/2],[0],[lidar_to_lens_distance]])))
 
     def on_configure(self, state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info(f"[{self.get_name()}] Configuring...")
@@ -88,19 +97,48 @@ class BoundingBox3dRvizPublisher(LifecycleNode):
             point_min: Point32 = object_in_box_3d.min # Point32
             point_max: Point32 = object_in_box_3d.max # Point32
 
+            points = np.array([[point_min.x, point_max.x, point_min.x, point_min.x],
+                               [point_min.y, point_min.y, point_max.y, point_min.y],
+                               [point_min.z, point_min.z, point_min.z, point_max.z],
+                               [1, 1, 1, 1]])
+            points_from_livox = self.rviz_extrinsic_matrix @ points
+            
+            point_min_from_livox = points_from_livox[:, 0]
+            point_x_from_livox = points_from_livox[:, 1]
+            point_y_from_livox = points_from_livox[:, 2]
+            point_z_from_livox = points_from_livox[:, 3]
+            
+            vec_x_from_livox = point_x_from_livox - point_min_from_livox
+            vec_y_from_livox = point_y_from_livox - point_min_from_livox
+            vec_z_from_livox = point_z_from_livox - point_min_from_livox
+            
+            size_x = np.linalg.norm(vec_x_from_livox)
+            size_y = np.linalg.norm(vec_y_from_livox)
+            size_z = np.linalg.norm(vec_z_from_livox)
+            center_from_livox = point_min_from_livox + vec_x_from_livox/2 + vec_y_from_livox/2 + vec_z_from_livox/2
+
+            normalized_vec_x_from_livox = vec_x_from_livox / size_x
+            normalized_vec_y_from_livox = vec_y_from_livox / size_y
+            normalized_vec_z_from_livox = vec_z_from_livox / size_z
+
+            bounding_box_3d_rotation_matrix = np.transpose(np.vstack((normalized_vec_x_from_livox,
+                                                                 normalized_vec_y_from_livox,
+                                                                 normalized_vec_z_from_livox))) # rotation_matrix
+            bounding_box_3d_quaternion = R.from_matrix(bounding_box_3d_rotation_matrix).as_quat() # scalar_first default:False
+
             center_bounding_box_3d = Pose()
-            center_bounding_box_3d.position.x = (point_max.x + point_min.x) / 2
-            center_bounding_box_3d.position.y = (point_max.y + point_min.y) / 2
-            center_bounding_box_3d.position.z = (point_max.z + point_min.z) / 2
-            center_bounding_box_3d.orientation.x = 0. ### need to modify
-            center_bounding_box_3d.orientation.y = 0.
-            center_bounding_box_3d.orientation.z = 0.
-            center_bounding_box_3d.orientation.w = 1.
+            center_bounding_box_3d.position.x = center_from_livox[0]
+            center_bounding_box_3d.position.y = center_from_livox[1]
+            center_bounding_box_3d.position.z = center_from_livox[2]
+            center_bounding_box_3d.orientation.x = bounding_box_3d_quaternion[0]
+            center_bounding_box_3d.orientation.y = bounding_box_3d_quaternion[1]
+            center_bounding_box_3d.orientation.z = bounding_box_3d_quaternion[2]
+            center_bounding_box_3d.orientation.w = bounding_box_3d_quaternion[3]
 
             size_bounding_box_3d = Vector3()
-            size_bounding_box_3d.x = point_max.x - point_min.x
-            size_bounding_box_3d.y = point_max.y - point_min.y
-            size_bounding_box_3d.z = point_max.z - point_min.z
+            size_bounding_box_3d.x = size_x
+            size_bounding_box_3d.y = size_y
+            size_bounding_box_3d.z = size_z
 
             bounding_box_3d.center = center_bounding_box_3d
             bounding_box_3d.size = size_bounding_box_3d
